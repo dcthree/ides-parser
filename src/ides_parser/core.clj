@@ -42,7 +42,7 @@
 (def vol-patterns 
   (ref 
     {"AAA" #"^\d+ \(\d{4}\)$"
-     "AD" #"^\d+ [A-Z] \(\d{4}\)$"
+     "AD" #"^\d+ [A-Z]? ?\(\d{4}\)$"
      "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
      "FD III" #"^\d$"
      "IC" #"^[IV]+$"
@@ -244,6 +244,7 @@
        result#)))
 
 (defn parse-citation-volume
+  "Start parsing with the assumption we don't have an item."
   [cite]
   (let [ls (s/split cite #"(?:,? |: ?|(?<!(?:p|n))\.(?! |$))")
         spacers (re-seq #"(?:,? |: ?|(?<!(?:p|n))\.(?! |$))" cite)]
