@@ -59,21 +59,21 @@
 
 (defn parse-validate
   [cite]
-  (prn (str "Validating: " cite))
+  ;; (prn (str "Validating: " cite))
   (if (match-vol-pattern (first cite) (second cite))
     cite
     (throw (Exception. "Volume in wrong format."))))
 
 (defn parse-cleanup
   [title vol item lst sp]
- (prn "parse-cleanup")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn (and (re-find #"^\(?(1[89]|20)\d\d\)?$" vol) (not= title "BE")))
- (prn "---------")
+ ;; (prn "parse-cleanup")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn (and (re-find #"^\(?(1[89]|20)\d\d\)?$" vol) (not= title "BE")))
+ ;; (prn "---------")
   ;; if the vol doesn't look like a vol, or looks like a year, it's part of the title
   (let [result 
           (if 
@@ -92,13 +92,13 @@
 
 (defn parse-vol-incomplete
   [title vol item lst sp]
- (prn "parse-vol-incomplete")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn "---------")
+ ;; (prn "parse-vol-incomplete")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn "---------")
   ;; if vol doesn't look like a volume #, but the preceding list element does,
   ;; then decide whether the current vol belongs in the item or not
   (if 
@@ -126,13 +126,13 @@
 
 (defn parse-vol-set
   [title vol item lst sp]
- (prn "parse-vol-set")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn "---------")
+ ;; (prn "parse-vol-set")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn "---------")
   (if-not (empty? lst)
     ;; if true, we haven't got the full title yet
     (if (contains? @vol-patterns (str title (first sp) (first lst))) 
@@ -154,13 +154,13 @@
 (defn parse-year
   "Years go only in volume info, so we can settle on what's in the item if we find a year."
   [title vol item lst sp]
- (prn "parse-year")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn "---------")
+ ;; (prn "parse-year")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn "---------")
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
     (if-let [i (last-index-of lst #"\(?(1[89]|20)\d\d\)?")]
@@ -171,13 +171,13 @@
 
 (defn parse-item-col
   [title vol item lst sp]
- (prn "parse-item-col")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn "---------")
+ ;; (prn "parse-item-col")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn "---------")
   (if (re-find #"^col\.?" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (s/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
@@ -185,13 +185,13 @@
 
 (defn parse-item-number
   [title vol item lst sp]
-  (prn "parse-item-number")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-item-number")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   ;; end of list doesn't look like a fascicle # (and we're not dealing with SEG) or item is non-numeric, but end of list is
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
@@ -204,13 +204,13 @@
 
 (defn parse-item-labeled
   [title vol item lst sp]
- (prn "parse-item-labeled")
- (prn title)
- (prn vol)
- (prn item)
- (prn lst)
- (prn sp)
- (prn "---------")
+ ;; (prn "parse-item-labeled")
+ ;; (prn title)
+ ;; (prn vol)
+ ;; (prn item)
+ ;; (prn lst)
+ ;; (prn sp)
+ ;; (prn "---------")
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
     (if-let [i (index-of lst #"^[0-9,]*(p(p|l)?\.|no?(t(e|a))?\.?)$")]
