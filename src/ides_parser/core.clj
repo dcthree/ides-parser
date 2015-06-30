@@ -15,14 +15,14 @@
 (defn re-match?
   "Returns true if the regex re matches the string s"
   [re s]
-  (not (st/blank? (first (re-find s re)))))
+  (not (st/blank? (str (first (re-find re s))))))
 
 (defn index-of
-  [s re]
+  [lst re]
   (loop [i 0]
-    (if (re-match? re (nth s i))
+    (if (re-match? re (nth lst i))
       i
-      (if (= (inc i) (count s))
+      (if (= (inc i) (count lst))
         nil
         (recur (inc i))))))
 
@@ -36,7 +36,9 @@
         (recur (inc i) rs)))))
 
 (def vol-patterns-claros
-  {"SEG" #"^\d{1,2}$"
+  {"ABV" #"\d+(-\d+)?\.?"
+   "AD N.S." #"\d+( A| B)?, \d{4}"
+   "SEG" #"^\d{1,2}$"
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "BLund" #"^\d{4}-\d+"
    "ICr" #"^\d$"})
@@ -108,7 +110,7 @@
   ;; if the vol doesn't look like a vol or a year, it's part of the title
   (let [result
           (if
-            (not (re-match? #"^(\(?\d{1,4}\)?|[IVXLC])[-0-9IVXLC²³.(), \[\]]*[a-z]?(Suppl\.)?(\(?[^)]+\))?$" vol))
+            (not (re-match? #"^(\(?(1[89]|20)\d\d(/\d\d?)?\)?|[IVXLC])[-0-9IVXLC²³.(), \[\]]*[a-z]?(Suppl\.)?(\(?[^)]+\))?$" vol))
             (if (empty? lst)
               (list (str title (last sp) vol) "" item)
               (list (str title (st/join (interleave sp lst)) (last sp) vol) "" item))
@@ -215,7 +217,7 @@
   (prn lst)
   (prn sp)
   (prn "---------")
-  (if (not (re-match? #"^(col\.|fig\.)?" item))
+  (if (re-match? #"^(col\.|fig\.)?" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
     (parse-year title vol item lst sp)))
@@ -267,8 +269,8 @@
 
 (defn parse-citation
   [cite]
-  (let [ls (st/split cite #"(?:,? |:|(?<!(?:p|n))\.(?! |$))")
-        spacers (re-seq #"(?:,? |:|(?<!(?:p|n))\.(?! |$))" cite)]
+  (let [ls (st/split cite #"(?:, ?| |:|(?<!(?:p|n))\.(?! |$))")
+        spacers (re-seq #"(?:, ?| |:|(?<!(?:p|n))\.(?! |$))" cite)]
         (when (> (count ls) 1)
           (parse-item-labeled (first ls) nil (last ls) (drop-last (rest ls)) spacers))))
 
