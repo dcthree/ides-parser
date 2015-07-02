@@ -12,19 +12,34 @@
   [string1 string2]
   (when (.contains string1 string2) (.substring string1 (+ (.indexOf string1 string2) (.length string2)))))
 
+(defn vec-remove
+  "Given a vector and a position, returns a vector with the element at that position removed"
+  [coll pos]
+  (vec (concat (subvec coll 0 pos) (subvec coll (inc pos)))))
+
 (defn re-match?
   "Returns true if the regex re matches the string s"
   [re s]
   (not (st/blank? (str (first (re-find re s))))))
 
 (defn index-of
+  ([lst re index]
+   (when (> (count lst) index)
+     (loop [i index]
+       (if (re-match? re (nth lst i))
+         i
+         (if (= (inc i) (count lst))
+           nil
+           (recur (inc i)))))))
+  ([lst re]
+   (index-of lst re 0)))
+
+(defn indexes-of
   [lst re]
-  (loop [i 0]
-    (if (re-match? re (nth lst i))
-      i
-      (if (= (inc i) (count lst))
-        nil
-        (recur (inc i))))))
+  (loop [i 0 result []]
+    (if-let [in (index-of lst re i)]
+      (recur (inc in) (conj result in))
+      result)))
 
 (defn last-index-of
   [s re]
@@ -35,9 +50,26 @@
         nil
         (recur (inc i) rs)))))
 
+(def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|\([^)]+\))")
+;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
+;; #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))"
+
+(defn split-cite
+  [cite]
+ (let [body (st/split cite separator)
+       ws (vec (re-seq separator cite))
+       parens (indexes-of ws #"\(")] 
+   (loop [p parens newbody body newws ws] 
+     (if (seq p) 
+       (recur (rest p) 
+              (let [b (split-at (first p) newbody)] (concat (conj (vec (first b)) (nth ws (first p))) (vec (second b))))
+              (vec-remove newws (first p)))
+       {:body (vec newbody), :ws newws}))))
+
 (def vol-patterns-claros
   {"ABV" #"\d+(-\d+)?\.?"
    "AD N.S." #"\d+( A| B)?, \d{4}"
+   "AJA" #"(N.S. )?\d+, \d{4}"
    "SEG" #"^\d{1,2}$"
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "BLund" #"^\d{4}-\d+"
@@ -269,10 +301,14 @@
 
 (defn parse-citation
   [cite]
-  (let [ls (st/split cite #"(?:, ?| |:|(?<!(?:p|n))\.(?! |$))")
-        spacers (re-seq #"(?:, ?| |:|(?<!(?:p|n))\.(?! |$))" cite)]
-        (when (> (count ls) 1)
-          (parse-item-labeled (first ls) nil (last ls) (drop-last (rest ls)) spacers))))
+  (let [spcite (split-cite cite)]
+    (when (> (count (:body spcite)) 1)
+      (parse-item-labeled 
+       (first (:body spcite)) 
+       nil 
+       (last (:body spcite)) 
+       (drop-last (rest (:body spcite))) 
+       (:ws spcite)))))
 
 (defmacro with-vol-pattern
   "Use a different set of volume patterns than the default."
@@ -286,9 +322,8 @@
 (defn parse-citation-volume
   "Start parsing with the assumption we don't have an item."
   [cite]
-  (let [ls (st/split cite #"(?:,? |: ?|(?<!(?:p|n))\.(?! |$))")
-        spacers (re-seq #"(?:,? |: ?|(?<!(?:p|n))\.(?! |$))" cite)]
-    (parse-vol-set (first ls) nil "" (rest ls) spacers)))
+  (let [spcite (split-cite cite)]
+    (parse-vol-set (first (:body spcite)) nil "" (rest (:body spcite)) (:ws spcite))))
 
 (defn parse-citation-with-title
   "The citation comes with a title, so we don't need to figure out what the title part is"
@@ -296,10 +331,9 @@
   (if (.startsWith cite title)
     (let [citepart (st/replace (substring-after cite title) #"^( |\.)" "")
           vol (with-vol-pattern {} (parse-citation-volume title))
-          ls (st/split citepart #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))")
-          spacers (re-seq #"(?:,? |: ?|(?<!(?:p|n))\.(?=(?:\d|pp?\.|n\.)))" cite)]
+          spcite (split-cite citepart)]
       (with-vol-pattern vol-patterns-claros
         (if-not (st/blank? (second vol))
           (parse-validate (list (first vol) (second vol) citepart))
-          (parse-item-labeled (first vol) (second vol) (last ls) (drop-last ls) spacers))))
+          (parse-item-labeled (first vol) (second vol) (last (:body spcite)) (drop-last (:body spcite)) (:ws spcite)))))
     (parse-citation cite)))
