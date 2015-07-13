@@ -50,7 +50,7 @@
         nil
         (recur (inc i) rs)))))
 
-(def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|\([^)]+\))")
+(def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<= )\([^)]+\))")
 ;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
 ;; #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))"
 
@@ -131,16 +131,18 @@
 
 (defn parse-cleanup
   [title vol item lst sp]
-  (prn "parse-cleanup")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn (and (re-match? #"^\(?(1[89]|20)\d\d\)?$" vol) (not= title "BE")))
-  (prn "---------")
-  ;; if the vol doesn't look like a vol or a year, it's part of the title
-  (let [result
+  ;; (prn "parse-cleanup")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn (and (re-match? #"^\(?(1[89]|20)\d\d\)?$" vol) (not= title "BE")))
+  ;; (prn "---------")
+  (if (and (empty? lst) (test-vol-pattern title vol))
+    [title vol item]
+     ;; if the vol doesn't look like a vol or a year, it's part of the title
+    (let [result
           (if
             (not (re-match? #"^(\(?(1[89]|20)\d\d(/\d\d?)?\)?|[IVXLC])[-0-9IVXLC²³.(), \[\]]*[a-z]?(Suppl\.)?(\(?[^)]+\))?$" vol))
             (if (empty? lst)
@@ -151,19 +153,19 @@
               (if (re-match? #"^(\d{1,2}|[IVXLC])[0-9IVXLC²³.(), \[\]]*[a-z]?(Suppl\.)?(\(?[^)]+\))?$" (last lst))
                 (parse-cleanup title (str (last lst) (last sp) vol) item (drop-last lst) (drop-last sp))
                 (list (str title (st/join (interleave sp lst))) vol item))))]
-    (parse-validate result)))
+    (parse-validate result))))
 
 (declare parse-vol-set)
 
 (defn parse-vol-incomplete
   [title vol item lst sp]
-  (prn "parse-vol-incomplete")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-vol-incomplete")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   ;; if vol doesn't look like a volume #, but the preceding list element does,
   ;; then decide whether the current vol belongs in the item or not
   (if
@@ -191,13 +193,13 @@
 
 (defn parse-vol-set
   [title vol item lst sp]
-  (prn "parse-vol-set")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-vol-set")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   (if-not (empty? lst)
     ;; if true, we haven't got the full title yet
     (if (contains? @vol-patterns (str title (first sp) (first lst)))
@@ -205,7 +207,7 @@
       ;; if true, we have a matching pattern, and so can stop
       (if (and (contains? @vol-patterns title) (re-match? (get @vol-patterns title) (st/trim (st/join (interleave-unequal lst (rest sp))))))
         (parse-validate (list title (st/trim (st/join (interleave-unequal lst (rest sp)))) item))
-        (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)[a-z](?![ ,])?$")]
+        (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
           (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
             ;; if the vol looks good, then skip to title
             (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
@@ -219,13 +221,13 @@
 (defn parse-year
   "Years go only in volume info, so we can settle on what's in the item if we find a year."
   [title vol item lst sp]
-  (prn "parse-year")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-year")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
     (if-let [i (last-index-of lst #"\(?(1[89]|20)\d\d(/\d\d?)?\)?")]
@@ -242,13 +244,13 @@
 (defn parse-item-sub-item
   "If the text in item is prefixed with something like 'col.' then we haven't got the whole item yet"
   [title vol item lst sp]
-  (prn "parse-item-sub-item")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-item-sub-item")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   (if (re-match? #"^(col\.|fig\.)?" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
@@ -256,33 +258,33 @@
 
 (defn parse-item-number
   [title vol item lst sp]
-   (prn "parse-item-number")
-   (prn title)
-   (prn vol)
-   (prn item)
-   (prn lst)
-   (prn sp)
-   (prn "---------")
+   ;; (prn "parse-item-number")
+   ;; (prn title)
+   ;; (prn vol)
+   ;; (prn item)
+   ;; (prn lst)
+   ;; (prn sp)
+   ;; (prn "---------")
   ;; end of list doesn't look like a fascicle # (and we're not dealing with SEG) or item is non-numeric, but end of list is
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
     (if
       (or
         (and (re-match? #"^([2-9]\d+|\d{3})$" (last lst)) (re-match? #"^not(?:e|a)" item))
-        (and (not (re-match? #"\d" item)) (re-match? #"\d" (last lst))))
+        (and (not (re-match? #"^\d" item)) (re-match? #"\d" (last lst))))
       (parse-item-sub-item title vol (str (last lst) (last sp) item) (drop-last lst) (drop-last sp))
       (parse-item-sub-item title vol item lst sp))))
 
 (defn parse-item-labeled
   "Some items/item parts are labeled, e.g p. 13, so spot them"
   [title vol item lst sp]
-  (prn "parse-item-labeled")
-  (prn title)
-  (prn vol)
-  (prn item)
-  (prn lst)
-  (prn sp)
-  (prn "---------")
+  ;; (prn "parse-item-labeled")
+  ;; (prn title)
+  ;; (prn vol)
+  ;; (prn item)
+  ;; (prn lst)
+  ;; (prn sp)
+  ;; (prn "---------")
   (if (empty? lst)
     (parse-validate (list title (or vol "") item))
     (if-let [i (index-of lst #"^[0-9,]*(p(p|l)?\.|no?(t(e|a))?\.?)$")]

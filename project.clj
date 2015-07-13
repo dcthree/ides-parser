@@ -6,7 +6,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]]
   :plugins [[org.apache.maven.wagon/wagon-ssh-external "2.6"]]
   :repositories [["papyri.info" "http://dev.papyri.info/maven/"]]
-  :deploy-repositories [["snapshots" "scp://libdc3-dev-01.oit.duke.edu/srv/data/papyri.info/pn/maven"]]
+  :deploy-repositories [["snapshots" "scp://hac13@libdc3-dev-01.oit.duke.edu/srv/data/papyri.info/pn/maven"]]
   :main ides-parser.core
   :aot [ides-parser.core])
 
