@@ -20,7 +20,10 @@
 (defn re-match?
   "Returns true if the regex re matches the string s"
   [re s]
-  (not (st/blank? (str (first (re-find re s))))))
+  (let [result (re-find re s)]
+    (or 
+     (seq result)
+     (not (nil? result)))))
 
 (defn index-of
   ([lst re index]
@@ -61,10 +64,14 @@
        parens (indexes-of ws #"\(")] 
    (loop [p parens newbody body newws ws] 
      (if (seq p) 
-       (recur (rest p) 
-              (let [b (split-at (first p) newbody)] (concat (conj (vec (first b)) (nth ws (first p))) (vec (second b))))
-              (vec-remove newws (first p)))
-       {:body (vec newbody), :ws newws}))))
+      (let [nws (vec-remove newws (first p))] 
+        (recur (indexes-of nws #"\(") 
+               (let [sb (split-at (first p) newbody)] 
+                 (prn (first sb))
+                 (prn (second sb))
+                 (concat (conj (vec (first sb)) (nth newws (first p))) (vec (nthrest (second sb) 2))))
+               nws))
+      {:body (vec newbody), :ws newws}))))
 
 (def vol-patterns-claros
   {"ABV" #"\d+(-\d+)?\.?"
