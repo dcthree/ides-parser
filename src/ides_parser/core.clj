@@ -91,7 +91,7 @@
      "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
      "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
      "FD III" #"^\d$"
-     "IC" #"^[IV]+$"
+     "IC" #"^[IV]+( [ivx]+)?$"
      "SEG" #"^\d{1,2}$"
 }))
 
@@ -216,6 +216,7 @@
         (parse-validate (list title (st/trim (st/join (interleave-unequal lst (rest sp)))) item))
         (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
           (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
+            (prn v)
             ;; if the vol looks good, then skip to title
             (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
               (if (re-match? #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?$" v)
@@ -240,7 +241,7 @@
     (if-let [i (last-index-of lst #"\(?(1[89]|20)\d\d(/\d\d?)?\)?")]
       (parse-vol-set title vol
         (str (st/join (interleave (take-last (dec (- (count lst) i)) lst) (take-last (dec (- (count lst) i)) sp))) item)
-        (drop-last (dec (- (count lst) i)) lst) (drop-last (dec (- (count sp) i)) sp))
+        (drop-last (dec (- (count lst) i)) lst) (drop-last (dec (- (count lst) i)) sp))
       (parse-vol-set title vol item lst sp))))
 
 ;;(defn parse-item-+
@@ -258,7 +259,7 @@
   ;; (prn lst)
   ;; (prn sp)
   ;; (prn "---------")
-  (if (re-match? #"^(col\.|fig\.)?" item)
+  (if (re-match? #"^(col\.|fig\.)" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
     (parse-year title vol item lst sp)))
