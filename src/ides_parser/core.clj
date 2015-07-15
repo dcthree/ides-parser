@@ -67,8 +67,6 @@
       (let [nws (vec-remove newws (first p))] 
         (recur (indexes-of nws #"\(") 
                (let [sb (split-at (first p) newbody)] 
-                 (prn (first sb))
-                 (prn (second sb))
                  (concat (conj (vec (first sb)) (nth newws (first p))) (vec (nthrest (second sb) 2))))
                nws))
       {:body (vec newbody), :ws newws}))))
@@ -89,9 +87,10 @@
   (ref
     {"AAA" #"^\d+ \(\d{4}\)$"
      "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
+     "AJA" #"(Ser. 1, )? \d+ \(\d{4}\)"
      "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
      "FD III" #"^\d$"
-     "IC" #"^[IV]+( [ivx]+)?$"
+     "IC" #"^[IV]+$"
      "SEG" #"^\d{1,2}$"
 }))
 
@@ -211,18 +210,21 @@
     ;; if true, we haven't got the full title yet
     (if (contains? @vol-patterns (str title (first sp) (first lst)))
       (parse-vol-set (str title (first sp) (first lst)) vol item (rest lst) (rest sp))
-      ;; if true, we have a matching pattern, and so can stop
+      ;; if true, what's left in the list is a matching pattern, and so can stop
       (if (and (contains? @vol-patterns title) (re-match? (get @vol-patterns title) (st/trim (st/join (interleave-unequal lst (rest sp))))))
         (parse-validate (list title (st/trim (st/join (interleave-unequal lst (rest sp)))) item))
-        (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
-          (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
-            ;; if the vol looks good, then skip to title
-            (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
-              (if (re-match? #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?$" v)
-                (parse-cleanup title v item (drop-last (- (count lst) i) lst) (drop-last (- (count lst) i) sp))
-                (parse-cleanup title (st/replace (first vv) "[, ]+$" "") (str (st/trim (substring-after v (first vv))) (last sp) item) (drop-last (- (count lst) i) lst) (drop-last (- (count lst) i) sp)))
-              (parse-vol-incomplete title (last lst) item (drop-last lst) (drop-last sp))))
-          (parse-vol-incomplete title (last lst) item (drop-last lst) sp))))
+        ;; if true, the first part of the list is the volume
+        (if (and (contains? @vol-patterns title) (re-match? (get @vol-patterns title) (first lst)))
+          (parse-validate (list title (first lst) (str (st/join (interleave-unequal (rest lst) (rest sp))) item)))
+          (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
+            (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
+              ;; if the vol looks good, then skip to title
+              (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
+                (if (re-match? #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?$" v)
+                  (parse-cleanup title v item (drop-last (- (count lst) i) lst) (drop-last (- (count lst) i) sp))
+                  (parse-cleanup title (st/replace (first vv) "[, ]+$" "") (str (st/trim (substring-after v (first vv))) (last sp) item) (drop-last (- (count lst) i) lst) (drop-last (- (count lst) i) sp)))
+                (parse-vol-incomplete title (last lst) item (drop-last lst) (drop-last sp))))
+            (parse-vol-incomplete title (last lst) item (drop-last lst) sp)))))
     (parse-validate (list title (or vol "") item))))
 
 (defn parse-year
@@ -257,7 +259,8 @@
   ;; (prn item)
   ;; (prn lst)
   ;; (prn sp)
-  ;; (prn "---------")
+  ;; (prn "---------")   
+  
   (if (re-match? #"^(col\.|fig\.)" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
@@ -340,9 +343,9 @@
   (if (.startsWith cite title)
     (let [citepart (st/replace (substring-after cite title) #"^( |\.)" "")
           vol (with-vol-pattern {} (parse-citation-volume title))
-          spcite (split-cite citepart)]
+          spcite (split-cite cite)]
       (with-vol-pattern vol-patterns-claros
         (if-not (st/blank? (second vol))
           (parse-validate (list (first vol) (second vol) citepart))
-          (parse-item-labeled (first vol) (second vol) (last (:body spcite)) (drop-last (:body spcite)) (:ws spcite)))))
+          (parse-item-labeled (first vol) (second vol) (last (:body spcite)) (drop-last (rest (:body spcite))) (:ws spcite)))))
     (parse-citation cite)))
