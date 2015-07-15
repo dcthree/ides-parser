@@ -216,7 +216,6 @@
         (parse-validate (list title (st/trim (st/join (interleave-unequal lst (rest sp)))) item))
         (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
           (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
-            (prn v)
             ;; if the vol looks good, then skip to title
             (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
               (if (re-match? #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?$" v)
