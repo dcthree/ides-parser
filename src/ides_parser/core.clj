@@ -53,7 +53,7 @@
         nil
         (recur (inc i) rs)))))
 
-(def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<= )\([^)]+\))")
+(def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<=\w)\.(?=\d)|(?<= )\([^)]+\))")
 ;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
 ;; #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))"
 
@@ -78,7 +78,7 @@
    "SEG" #"^\d{1,2}$"
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "BLund" #"^\d{4}-\d+"
-   "ICr" #"^\d$"})
+   "ICr" #"[1-4]$"})
 
 (def vol-patterns-claros-title
   {})
@@ -259,8 +259,7 @@
   ;; (prn item)
   ;; (prn lst)
   ;; (prn sp)
-  ;; (prn "---------")   
-  
+  ;; (prn "---------") 
   (if (re-match? #"^(col\.|fig\.)" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
