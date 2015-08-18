@@ -21,7 +21,7 @@
   "Returns true if the regex re matches the string s"
   [re s]
   (let [result (re-find re s)]
-    (or 
+    (or
      (seq result)
      (not (nil? result)))))
 
@@ -53,6 +53,56 @@
         nil
         (recur (inc i) rs)))))
 
+(defn dbl
+  [num]
+  (try
+    (Double/parseDouble num)
+    (catch NumberFormatException e
+      0)))
+
+(defn numeral-to-int
+  [chr]
+  (case (str/upper-case chr)
+    "I" 1
+    "V" 5
+    "X" 10
+    "L" 50
+    "C" 100))
+
+(defn roman-to-int
+  [num]
+  (loop [nums (reverse (seq num)) last 0 total 0]
+    (if (seq nums)
+      (let [i (numeral-to-int (first nums))]
+        (recur (rest nums) i (if (>= i last) (+ total i) (- total i))))
+      total)))
+
+(defn vol-to-num
+  "Takes a volume number and converts it to a number for sorting"
+  [v]
+  (let [vol (str/replace
+             (str/replace
+              (str/replace
+               (str/replace
+                (str/replace
+                 (str/replace
+                  (str/replace v #"(^\(|\)$)" "")
+                  #"^\D+(\.|\D+| )+" "")
+                 #"[\(\)\[\]]" ".")
+                #"[-,/]" ".")
+               "²" ".2")
+              "³" ".3")
+             " " ".")]
+    (cond
+     (re-find #"^\d+\.?\d*$" vol) (dbl vol)
+     (re-find #"^[IVXLCivxlc]+$" vol) (double (roman-to-int vol))
+     (re-find  #"^[IVXLC]+\.[IVXLCivxlc]+$" vol) (dbl (str (roman-to-int (substring-before vol ".")) "." (roman-to-int (substring-after vol "."))))
+     (re-find  #"^[IVXLC]+\.[IVXLCivxlc]+\d+$" vol) (dbl (str (roman-to-int (substring-before vol ".")) "." (roman-to-int (str/replace (substring-after vol ".") #"\d" "")) (str/replace (substring-after vol ".") #"[IVXLCivxlc]" "")))
+     (re-find #"^[IVXLC]+\.\d+$" vol) (+ (roman-to-int (substring-before vol ".")) (dbl (substring-after vol (re-find #"[IVXLC]+" vol))))
+     (re-find #"\.[^.]*\..*" vol) (vol-to-num (str (substring-before vol ".") "." (str/replace (substring-after vol ".") "." "")))
+     (re-find #"^[IVXLC]+\.\D+$" vol) (vol-to-num (str (roman-to-int (substring-before vol ".")) "." (str/replace vol #"\D+" "99")))
+     :else 0)))
+
 (def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<=\w)\.(?=\d)|(?<= )\([^)]+\))")
 ;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
 ;; #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))"
@@ -61,12 +111,12 @@
   [cite]
  (let [body (st/split cite separator)
        ws (vec (re-seq separator cite))
-       parens (indexes-of ws #"\(")] 
-   (loop [p parens newbody body newws ws] 
-     (if (seq p) 
-      (let [nws (vec-remove newws (first p))] 
-        (recur (indexes-of nws #"\(") 
-               (let [sb (split-at (first p) newbody)] 
+       parens (indexes-of ws #"\(")]
+   (loop [p parens newbody body newws ws]
+     (if (seq p)
+      (let [nws (vec-remove newws (first p))]
+        (recur (indexes-of nws #"\(")
+               (let [sb (split-at (first p) newbody)]
                  (concat (conj (vec (first sb)) (nth newws (first p))) (vec (nthrest (second sb) 2))))
                nws))
       {:body (vec newbody), :ws newws}))))
@@ -216,7 +266,7 @@
         ;; if true, the first part of the list is the volume
         (if (and (contains? @vol-patterns title) (re-match? (get @vol-patterns title) (first lst)))
           (parse-validate (list title (first lst) (str (st/join (interleave-unequal (rest lst) (rest sp))) item)))
-          (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]          
+          (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]
             (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
               ;; if the vol looks good, then skip to title
               (if-let [vv (re-find #"^\d?[0-9IVXLC²³., ()\[\]]+[a-z]?(Suppl\.)?(\(?[^)]+\))?" v)]
@@ -259,7 +309,7 @@
   ;; (prn item)
   ;; (prn lst)
   ;; (prn sp)
-  ;; (prn "---------") 
+  ;; (prn "---------")
   (if (re-match? #"^(col\.|fig\.)" item)
     (let [i (inc (- (count lst) (last-index-of lst #"\d")))]
       (parse-year title vol (str (st/join (interleave (take-last (inc i) lst) (take-last i sp))) (last lst)) (drop-last (inc i) lst) (drop-last i sp)))
@@ -314,11 +364,11 @@
   [cite]
   (let [spcite (split-cite cite)]
     (when (> (count (:body spcite)) 1)
-      (parse-item-labeled 
-       (first (:body spcite)) 
-       nil 
-       (last (:body spcite)) 
-       (drop-last (rest (:body spcite))) 
+      (parse-item-labeled
+       (first (:body spcite))
+       nil
+       (last (:body spcite))
+       (drop-last (rest (:body spcite)))
        (:ws spcite)))))
 
 (defmacro with-vol-pattern
