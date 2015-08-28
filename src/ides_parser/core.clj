@@ -62,7 +62,7 @@
 
 (defn numeral-to-int
   [chr]
-  (case (str/upper-case chr)
+  (case (st/upper-case chr)
     "I" 1
     "V" 5
     "X" 10
@@ -77,31 +77,38 @@
         (recur (rest nums) i (if (>= i last) (+ total i) (- total i))))
       total)))
 
-(defn vol-to-num
-  "Takes a volume number and converts it to a number for sorting"
-  [v]
-  (let [vol (str/replace
-             (str/replace
-              (str/replace
-               (str/replace
-                (str/replace
-                 (str/replace
-                  (str/replace v #"(^\(|\)$)" "")
-                  #"^\D+(\.|\D+| )+" "")
-                 #"[\(\)\[\]]" ".")
-                #"[-,/]" ".")
-               "²" ".2")
-              "³" ".3")
-             " " ".")]
-    (cond
-     (re-find #"^\d+\.?\d*$" vol) (dbl vol)
-     (re-find #"^[IVXLCivxlc]+$" vol) (double (roman-to-int vol))
-     (re-find  #"^[IVXLC]+\.[IVXLCivxlc]+$" vol) (dbl (str (roman-to-int (substring-before vol ".")) "." (roman-to-int (substring-after vol "."))))
-     (re-find  #"^[IVXLC]+\.[IVXLCivxlc]+\d+$" vol) (dbl (str (roman-to-int (substring-before vol ".")) "." (roman-to-int (str/replace (substring-after vol ".") #"\d" "")) (str/replace (substring-after vol ".") #"[IVXLCivxlc]" "")))
-     (re-find #"^[IVXLC]+\.\d+$" vol) (+ (roman-to-int (substring-before vol ".")) (dbl (substring-after vol (re-find #"[IVXLC]+" vol))))
-     (re-find #"\.[^.]*\..*" vol) (vol-to-num (str (substring-before vol ".") "." (str/replace (substring-after vol ".") "." "")))
-     (re-find #"^[IVXLC]+\.\D+$" vol) (vol-to-num (str (roman-to-int (substring-before vol ".")) "." (str/replace vol #"\D+" "99")))
-     :else 0)))
+(defn convert-to-num
+  "Takes a volume or item number and converts it to a number for sorting"
+  [n]
+  (let [num (st/replace
+             (st/replace
+              (st/replace
+               (st/replace
+                (st/replace
+                 (st/replace
+                  (st/replace n #"(^\(|\)$)" "") ;; strip parentheses at beginning and end
+                  #"^[^0-9IVXLCivlxc]+(\.|\D| )+" "") ;; strip stuff at the beginning that doesn't look like a number
+                 #"[\(\)\[\]]" ".")  ;; replace all brackets with ☃
+                #"[-,/]" ".") ;; hyphen, comma, slash -> ☃
+               "²" ".2") ;; superscript 2 -> ☃2
+              "³" ".3") ;; superscript 3 -> ☃3
+             " " ".")] ;; . -> ☃
+    (try (loop [elements (st/split num #"\.") x 1000000000 result 0]
+      (let [elt (first elements)
+            val (cond
+                  (nil? elt) (double 0.0)
+                  (re-find #"^\d+$" elt) (dbl elt)
+                  (re-find #"^[IVXLCivxlc]+$" elt) (double (roman-to-int elt))
+                  (re-find #"^[IVXLCivxlc]+[^0-9IVXLCivlxc]+$" elt) (double (roman-to-int (st/replace elt #"[^0-9IVXLCivlxc]+$" "")))
+                  (re-find #"^\D+\d+$" elt) (dbl (st/replace elt #"^\D+" ""))
+                  (re-find #"^\d+\D+$" elt) (dbl (st/replace elt #"\D+$" ""))
+                  :else (double 0.0))]
+        (if (seq (rest elements))
+          (recur (rest elements) (/ x 10000) (+ result (* x val)))
+          (+ result (* x val)))))
+          (catch Exception e
+            (prn num)
+            (.printStackTrace e)))))
 
 (def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<=\w)\.(?=\d)|(?<= )\([^)]+\))")
 ;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
@@ -124,7 +131,8 @@
 (def vol-patterns-claros
   {"ABV" #"\d+(-\d+)?\.?"
    "AD N.S." #"\d+( A| B)?, \d{4}"
-   "AJA" #"(N.S. )?\d+, \d{4}"
+   "AJA" #"(N\.S\. )?\d+, \d{4}"
+   "AJPh" #"(N\.S\. )?\d+, \d{4}"
    "SEG" #"^\d{1,2}$"
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "BLund" #"^\d{4}-\d+"
