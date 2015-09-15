@@ -138,19 +138,25 @@
    "BLund" #"^\d{4}-\d+"
    "ICr." #"[1-4]$"})
 
+(def vol-patterns-phi
+  {"AAA" #"^\d+ \(\d{4}\)$"
+   "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
+   "AJA" #"(Ser. 1, )? \d+ \(\d{4}\)"
+   "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
+   "FD III" #"^\d$"
+   "IC" #"^[IV]+$"
+   "IG" #"[IVX]+[²³]?(,\d+)?"
+   "SEG" #"^\d{1,2}$"})
+
+(def vol-patterns-seg
+  {"IG" #"[IVX]+[²³]?(\.\d+)?"})
+
 (def vol-patterns-claros-title
   {})
 
 (def vol-patterns
   (ref
-    {"AAA" #"^\d+ \(\d{4}\)$"
-     "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
-     "AJA" #"(Ser. 1, )? \d+ \(\d{4}\)"
-     "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
-     "FD III" #"^\d$"
-     "IC" #"^[IV]+$"
-     "SEG" #"^\d{1,2}$"
-}))
+    vol-patterns-phi))
 
 (defn test-vol-pattern
   "Returns the matched value if vol has a known pattern and it matches value, false if not,
@@ -189,9 +195,11 @@
 (defn parse-validate
   [cite]
   ;; (prn (str "Validating: " cite))
-  (if (test-vol-pattern (first cite) (second cite))
+  (if (and (st/blank? (second cite)) (st/blank? (last cite))) ;; Only have a title
     cite
-    (throw (Exception. "Volume in wrong format."))))
+    (if (test-vol-pattern (first cite) (second cite))
+      cite
+      (throw (Exception. "Volume in wrong format.")))))
 
 (defn parse-cleanup
   [title vol item lst sp]
