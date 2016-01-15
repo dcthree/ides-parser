@@ -53,6 +53,63 @@
         nil
         (recur (inc i) rs)))))
 
+(defn dbl
+  [num]
+  (try
+    (Double/parseDouble num)
+    (catch NumberFormatException e
+      0)))
+
+(defn numeral-to-int
+  [chr]
+  (case (st/upper-case chr)
+    "I" 1
+    "V" 5
+    "X" 10
+    "L" 50
+    "C" 100))
+
+(defn roman-to-int
+  [num]
+  (loop [nums (reverse (seq num)) last 0 total 0]
+    (if (seq nums)
+      (let [i (numeral-to-int (first nums))]
+        (recur (rest nums) i (if (>= i last) (+ total i) (- total i))))
+      total)))
+
+(defn convert-to-num
+  "Takes a volume or item number and converts it to a number for sorting"
+  [n]
+  (let [num (st/replace
+             (st/replace
+              (st/replace
+               (st/replace
+                (st/replace
+                 (st/replace
+                  (st/replace n #"(^\(|\)$)" "") ;; strip parentheses at beginning and end
+                  #"^[^0-9IVXLCivlxc]+(\.|\D| )+" "") ;; strip stuff at the beginning that doesn't look like a number
+                 #"[\(\)\[\]]" ".")  ;; replace all brackets with ☃
+                #"[-,/]" ".") ;; hyphen, comma, slash -> ☃
+               "²" ".2") ;; superscript 2 -> ☃2
+              "³" ".3") ;; superscript 3 -> ☃3
+             " " ".")] ;; . -> ☃
+    (try (loop [elements (st/split num #"\.") x 1000000000 result 0]
+      (let [elt (first elements)
+            val (cond
+                  (nil? elt) (double 0.0)
+                  (re-find #"^\d+$" elt) (dbl elt)
+                  (re-find #"^[IVXLCivxlc]+$" elt) (double (roman-to-int elt))
+                  (re-find #"^[IVXLCivxlc]+[^0-9IVXLCivlxc]+$" elt) (double (roman-to-int (st/replace elt #"[^0-9IVXLCivlxc]+$" "")))
+                  (re-find #"^\D+\d+$" elt) (dbl (st/replace elt #"^\D+" ""))
+                  (re-find #"^\d+\D+$" elt) (dbl (st/replace elt #"\D+$" ""))
+                  :else (double 0.0))]
+        (if (seq (rest elements))
+          (recur (rest elements) (/ x 10000) (+ result (* x val)))
+          (+ result (* x val)))))
+          (catch Exception e
+            (prn num)
+            (.printStackTrace e)))))
+
 (def separator #"(?:, ?| |:|(?<=(?:\]|\d))\.(?! |$)|(?<=\w)\.(?=\d)|(?<= )\([^)]+\))")
 ;; non-capturing: , optional space|space|:; period preceded by ] or a digit and not followed by a space
 ;; #"(?:,? |: ?|(?<!(p|n))\.(?=(\d|pp?\.|n\.)))"
@@ -74,26 +131,32 @@
 (def vol-patterns-claros
   {"ABV" #"\d+(-\d+)?\.?"
    "AD N.S." #"\d+( A| B)?, \d{4}"
-   "AJA" #"(N.S. )?\d+, \d{4}"
+   "AJA" #"(N\.S\. )?\d+, \d{4}"
+   "AJPh" #"(N\.S\. )?\d+, \d{4}"
    "SEG" #"^\d{1,2}$"
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "BLund" #"^\d{4}-\d+"
-   "ICr" #"[1-4]$"})
+   "ICr." #"[1-4]$"})
+
+(def vol-patterns-phi
+  {"AAA" #"^\d+ \(\d{4}\)$"
+   "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
+   "AJA" #"(Ser. 1, )? \d+ \(\d{4}\)"
+   "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
+   "FD III" #"^\d$"
+   "IC" #"^[IV]+$"
+   "IG" #"[IVX]+[²³]?((, ?\d+)(\(\d\))?)?"
+   "SEG" #"^\d{1,2}$"})
+
+(def vol-patterns-seg
+  {"IG" #"[IVX]+[²³]?(\.\d+)?"})
 
 (def vol-patterns-claros-title
   {})
 
 (def vol-patterns
   (ref
-    {"AAA" #"^\d+ \(\d{4}\)$"
-     "AD" #"^\d+ ([A-Z]\d?)? ?\(\d{4}(/\d?\d)?\)$"
-     "AJA" #"(Ser. 1, )? \d+ \(\d{4}\)"
-     "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
-     "FD III" #"^\d$"
-     "IC" #"^[IV]+$"
-     "SEG" #"^\d{1,2}$"
-     "IG" #"^[IVX]+([²³]|\[[23]\]|\.?[23])$?"
-}))
+    vol-patterns-phi))
 
 (defn test-vol-pattern
   "Returns the matched value if vol has a known pattern and it matches value, false if not,
@@ -132,9 +195,11 @@
 (defn parse-validate
   [cite]
   ;; (prn (str "Validating: " cite))
-  (if (test-vol-pattern (first cite) (second cite))
+  (if (and (st/blank? (second cite)) (st/blank? (last cite))) ;; Only have a title
     cite
-    (throw (Exception. "Volume in wrong format."))))
+    (if (test-vol-pattern (first cite) (second cite))
+      cite
+      (throw (Exception. "Volume in wrong format.")))))
 
 (defn parse-cleanup
   [title vol item lst sp]
