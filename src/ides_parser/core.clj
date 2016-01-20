@@ -145,7 +145,7 @@
    "BE" #"^\(?(1[89]|20)\d\d\)?(-\d+)?$"
    "FD III" #"^\d$"
    "IC" #"^[IV]+$"
-   "IG" #"[IVX]+[²³]?((, ?\d+)(\(\d\))?)?"
+   "IG" #"[IVX]+[23²³]?(((,|\.) ?\d+)(\(\d\))?)?$"
    "SEG" #"^\d{1,2}$"})
 
 (def vol-patterns-seg
@@ -194,7 +194,7 @@
 
 (defn parse-validate
   [cite]
-  ;; (prn (str "Validating: " cite))
+  ;;(prn (str "Validating: " cite))
   (if (and (st/blank? (second cite)) (st/blank? (last cite))) ;; Only have a title
     cite
     (if (test-vol-pattern (first cite) (second cite))
@@ -265,13 +265,13 @@
 
 (defn parse-vol-set
   [title vol item lst sp]
-  ;; (prn "parse-vol-set")
-  ;; (prn title)
-  ;; (prn vol)
-  ;; (prn item)
-  ;; (prn lst)
-  ;; (prn sp)
-  ;; (prn "---------")
+   ;;(prn "parse-vol-set")
+   ;;(prn title)
+   ;;(prn vol)
+   ;;(prn item)
+   ;;(prn lst)
+   ;;(prn sp)
+   ;;(prn "---------")
   (if-not (empty? lst)
     ;; if true, we haven't got the full title yet
     (if (contains? @vol-patterns (str title (first sp) (first lst)))
@@ -281,7 +281,7 @@
         (parse-validate (list title (st/trim (st/join (interleave-unequal lst (rest sp)))) item))
         ;; if true, the first part of the list is the volume
         (if (and (contains? @vol-patterns title) (re-match? (get @vol-patterns title) (first lst)))
-          (parse-validate (list title (first lst) (str (st/join (interleave-unequal (rest lst) (rest sp))) item)))
+          (parse-validate (list title (first lst) (str (st/join (interleave-unequal (rest lst) (rest (rest sp)))) item)))
           (if-let [i (index-of lst #"^(\d+[\[\]()0-9]*|[IVXLC][0-9IVXLC²³.,()\[\]]*)([a-z](?![ ,]))?$")]
             (let [v (str (st/join (interleave (take-last (- (count lst) i) lst) (take-last (- (count (drop-last (rest sp))) i) (drop-last (rest sp))))) (last lst))]
               ;; if the vol looks good, then skip to title
